@@ -15,6 +15,6 @@ class ClientRepository implements ClientRepositoryInterface
 
     public function getClientEntity($clientIdentifier, $grantType, $clientSecret = null, $mustValidateSecret = true)
     {
-        // TODO: Implement getClientEntity() method.
+        
     }
 }
