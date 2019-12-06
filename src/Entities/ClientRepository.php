@@ -1,20 +1,45 @@
 <?php
 namespace Lyignore\LaravelOauth2\Entities;
 
-use Laravel\Pass
-use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
+use Lyignore\LaravelOauth2\Design\Repositories\ClientRepositoryInterface;
+use Lyignore\LaravelOauth2\Models\Client as ClientModel;
 
 class ClientRepository implements ClientRepositoryInterface
 {
-    protected $clients;
+    protected $client;
 
-    public function __construct(Client $clients)
+    protected $clientModel;
+
+    public function __construct(ClientModel $client)
     {
-        $this->clients = $clients;
+        $this->clientModel = $client;
     }
 
-    public function getClientEntity($clientIdentifier, $grantType, $clientSecret = null, $mustValidateSecret = true)
+
+    public function getClientEntity($identifier, $grantType, $clientSecret = null)
     {
-        
+        $record = $this->clientModel->findActive($identifier);
+
+        if(!$record || $this->handlesGrant($record, $grantType)){
+            return;
+        }
+
+        $this->client = new Client($identifier, $record->name, $record->redirect);
+
+        return $this->client;
+    }
+
+    protected function handlesGrant($record, $grantType)
+    {
+        switch ($grantType){
+            case 'authorization_code':
+                return !$record->firstParty();
+            case 'personal_access':
+                return $record->personal_access_client;
+            case 'password':
+                return $record->password_client;
+            default:
+                return true;
+        }
     }
 }

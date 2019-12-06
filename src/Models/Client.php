@@ -21,6 +21,13 @@ class Client extends Model
         return $this->hasMany(Token::class, "client_id");
     }
 
+    public function findActive($id)
+    {
+        $client = $this->find($id);
+
+        return $client && $client->revoked?:null;
+    }
+
     public function firstParty()
     {
         return $this->personal_access_client||$this->password_client;

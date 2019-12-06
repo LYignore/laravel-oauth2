@@ -3,7 +3,10 @@ namespace Lyignore\LaravelOauth2\Guards;
 
 use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Contracts\Encryption\Encrypter;
+use Illuminate\Http\Request;
 use League\OAuth2\Server\ResourceServer;
+use Lyignore\LaravelOauth2\Entities\AccessTokenRepository;
+use Lyignore\LaravelOauth2\Entities\ClientRepository;
 
 class TokenGuard
 {
@@ -20,7 +23,7 @@ class TokenGuard
     public function __construct(
         ResourceServer $server,
         UserProvider $provider,
-        TokenRepository $tokens,
+        AccessTokenRepository $tokens,
         ClientRepository $clients,
         Encrypter $encrypter)
     {
@@ -31,9 +34,33 @@ class TokenGuard
         $this->encrypter = $encrypter;
     }
 
-    public function user()
+    public function user(Request $request)
     {
+        if ($request->bearerToken()) {
+            return $this->authenticateViaBearerToken($request);
+        }else{
+            throw new \Exception('without token');
+        }
+    }
 
+    public function authenticateViaBearerToken(Request $request)
+    {
+        $user = $this->provider->retrieveById(
+            $request->input('oauth_user_id')
+        );
+        if (! $user) {
+            return;
+        }
+
+        $token = $this->tokens->find(
+            $request->input('oauth_access_token_id')
+        );
+        $clientId = $request->input('oauth_client_id');
+
+        if ($this->clients->revoked($clientId)) {
+            return;
+        }
+        return $token ? $user->withAccessToken($token) : null;
     }
 
 }

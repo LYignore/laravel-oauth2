@@ -1,20 +1,19 @@
 <?php
 namespace Lyignore\LaravelOauth2\Entities;
 
-use League\OAuth2\Server\Entities\ScopeEntityInterface;
-use League\OAuth2\Server\Entities\Traits\EntityTrait;
+use Lyignore\LaravelOauth2\Design\Entities\ScopeEntityInterface;
 
 class Scope implements ScopeEntityInterface
 {
-    use EntityTrait;
+    protected $identifier;
 
-    public function __construct($identifier)
+    public function __construct($name)
     {
-        $this->setIdentifier($identifier);
+        $this->identifier = $name;
     }
 
-    public function jsonSerialize()
+    public function getIdentifier()
     {
-        return $this->getIdentifier();
+        return $this->identifier;
     }
 }

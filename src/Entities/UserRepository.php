@@ -1,32 +1,15 @@
 <?php
 namespace Lyignore\LaravelOauth2\Entities;
 
-use http\Exception\RuntimeException;
-use Illuminate\Contracts\Hashing\Hasher;
-use League\OAuth2\Server\Entities\ClientEntityInterface;
-use League\OAuth2\Server\Repositories\UserRepositoryInterface;
+use Lyignore\LaravelOauth2\Design\Entities\UserRepositoryInterface;
 
 class UserRepository implements UserRepositoryInterface
 {
-    /**
-     * The hasher implementation
-     */
-    protected $hasher;
+    protected $user;
 
+    protected $userModel;
 
-    public function __construct(Hasher $hasher)
-    {
-        $this->hasher = $hasher;
-    }
-
-    /**
-     * Get the user identifier by username and password
-     *
-     */
-    public function getUserEntityByUserCredentials($username,
-                                                   $password,
-                                                   $grantType,
-                                                   ClientEntityInterface $clientEntity)
+    public function getUserEntityByUserCrentials($username, $password, $grantType)
     {
         $provider = config('auth.guards.api.provider');
 
@@ -42,14 +25,15 @@ class UserRepository implements UserRepositoryInterface
 
         if(!$user){
             return;
-        }elseif(method_exists($model, 'validateForPassportPasswordGrant')){
-            if(!$user->validateForPassportPasswordGrant($password)){
+        }elseif(method_exists($model, 'validateForPassportGrant')){
+            if(!$user->validateForPassportGrant($password)){
                 return;
             }
         }elseif(!$user->haser->check($password, $user->getAuthPassword())){
             return;
         }
 
-        return new User($user->getAuthIdentifier());
+        $identifier = $user->identifier?:$user->id;
+        return new User($identifier);
     }
 }

@@ -1,16 +1,24 @@
 <?php
 namespace Lyignore\LaravelOauth2\Entities;
 
-use League\OAuth2\Server\Entities\Traits\EntityTrait;
-use League\OAuth2\Server\Entities\UserEntityInterface;
-use League\OAuth2\Server\Repositories\UserRepositoryInterface;
+use Lyignore\LaravelOauth2\Design\Entities\UserEntityInterface;
 
 class User implements UserEntityInterface
 {
-    use EntityTrait;
+    protected $identifier;
 
-    public function __construct($id)
+    public function __construct($idnetifier)
     {
-        $this->setIdentifier($id);
+        $this->setIdentifier($idnetifier);
+    }
+
+    public function setIdentifier($identifier)
+    {
+        $this->identifier = $identifier;
+    }
+
+    public function getIdentifier()
+    {
+        return $this->identifier;
     }
 }

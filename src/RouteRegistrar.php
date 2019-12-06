@@ -64,7 +64,7 @@ class RouteRegistrar
     public function forClients()
     {
         $this->router->group(['middleware' => ['web', 'auth']], function ($router){
-            $router->get('clients', [
+            $router->get('/clients', [
                 'uses' => 'ClientController@forUser',
             ]);
 
