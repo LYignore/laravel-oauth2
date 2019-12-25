@@ -4,7 +4,7 @@ namespace Lyignore\LaravelOauth2\Guards;
 use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Contracts\Encryption\Encrypter;
 use Illuminate\Http\Request;
-use League\OAuth2\Server\ResourceServer;
+use Lyignore\LaravelOauth2\Design\AuthenticationServer;
 use Lyignore\LaravelOauth2\Entities\AccessTokenRepository;
 use Lyignore\LaravelOauth2\Entities\ClientRepository;
 
@@ -21,7 +21,7 @@ class TokenGuard
     protected $encrypter;
 
     public function __construct(
-        ResourceServer $server,
+        AuthenticationServer $server,
         UserProvider $provider,
         AccessTokenRepository $tokens,
         ClientRepository $clients,
@@ -45,22 +45,24 @@ class TokenGuard
 
     public function authenticateViaBearerToken(Request $request)
     {
+        $resquestWithToken = $this->server->validateAuthenticated($request);
         $user = $this->provider->retrieveById(
-            $request->input('oauth_user_id')
+            //$resquestWithToken['oauth_client_id']
+            $resquestWithToken->input('oauth_user_id')
         );
-        if (! $user) {
+        if (!$user) {
             return;
         }
 
         $token = $this->tokens->find(
+            //$resquestWithToken['oauth_access_token_id']
             $request->input('oauth_access_token_id')
         );
-        $clientId = $request->input('oauth_client_id');
+        $clientId = $resquestWithToken->input('oauth_client_id');
 
         if ($this->clients->revoked($clientId)) {
             return;
         }
         return $token ? $user->withAccessToken($token) : null;
     }
-
 }

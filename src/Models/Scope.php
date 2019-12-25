@@ -1,30 +1,15 @@
 <?php
 namespace Lyignore\LaravelOauth2\Models;
-use Illuminate\Contracts\Support\Arrayable;
-use Illuminate\Contracts\Support\Jsonable;
 
-class Scope implements Arrayable, Jsonable
+class Scope implements Models
 {
-    public $id;
+    protected $table = "oauth_scope";
 
-    public $description;
+    public $incrementing = false;
 
-    public function __construct($id, $description)
-    {
-        $this->id = $id;
-        $this->description = $description;
-    }
+    public $timestamps = false;
 
-    public function toArray()
-    {
-        return [
-            'id' => $this->id,
-            'description' => $this->description,
-        ];
-    }
+    protected $guarded = [];
 
-    public function toJson()
-    {
-        return json_encode($this->toArray());
-    }
+    protected $dates = ["expires_at"];
 }

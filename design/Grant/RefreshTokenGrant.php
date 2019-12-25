@@ -9,8 +9,9 @@ use Lyignore\LaravelOauth2\Design\ResponseTypes\ResponseTypeInterface;
 
 class RefreshTokenGrant extends AbstractGrant
 {
+    const IDENTIFIER = 'refresh_token';
     /**
-     * @param RefreshTokenRepositoryInterface $refreshTokenRepository
+     * Determine whether there is a user role and whether there is a refreshtoken requirement
      */
     public function __construct(RefreshTokenRepositoryInterface $refreshTokenRepository)
     {
@@ -19,8 +20,17 @@ class RefreshTokenGrant extends AbstractGrant
         $this->refreshTokenTTL = new DateInterval('P1M');
     }
 
+    public function getIdentifier()
+    {
+        return self::IDENTIFIER;
+    }
+
     /**
-     * {@inheritdoc}
+     * Generate token requests in response
+     * @param \Illuminate\Http\Request $request
+     * @param \Lyignore\LaravelOauth2\Design\ResponseTypes\ResponseTypeInterface $responseType
+     * @param \DateInterval $dateInterval
+     * @return \Lyignore\LaravelOauth2\Design\ResponseTypes\ResponseTypeInterface
      */
     public function respondToAccessTokenRequest(
         Request $request,
@@ -55,7 +65,7 @@ class RefreshTokenGrant extends AbstractGrant
         return $responseType;
     }
 
-    protected function validateOldRefreshToken(ServerRequestInterface $request, $clientId)
+    protected function validateOldRefreshToken(Request $request, $clientId)
     {
         $encryptedRefreshToken = $this->getRequestParameter('refresh_token', $request);
         if (is_null($encryptedRefreshToken)) {
@@ -64,8 +74,8 @@ class RefreshTokenGrant extends AbstractGrant
 
         try {
             $refreshToken = $this->decrypt($encryptedRefreshToken);
-        } catch (Exception $e) {
-            throw new Exception('Cannot decrypt the refresh token');
+        } catch (\Exception $e) {
+            throw new \Exception('Cannot decrypt the refresh token');
         }
 
         $refreshTokenData = json_decode($refreshToken, true);
@@ -84,8 +94,13 @@ class RefreshTokenGrant extends AbstractGrant
         return $refreshTokenData;
     }
 
-    public function getIdentifier()
+    public function canRespondToAuthorizationRequest(Request $request)
     {
-        return 'refresh_token';
+        return false;
+    }
+
+    public function validateAuthorizationRequest(Request $request)
+    {
+        throw new \Exception('This refreshGrant cannot validate an authorization request');
     }
 }

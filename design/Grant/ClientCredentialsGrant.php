@@ -6,11 +6,20 @@ use Lyignore\LaravelOauth2\Design\ResponseTypes\ResponseTypeInterface;
 
 class ClientCredentialsGrant extends AbstractGrant
 {
+    const IDENTIFIER = 'client_credentials';
+
     public function getIdentifier()
     {
-        return 'client_credentials';
+        return self::IDENTIFIER;
     }
 
+    /**
+     * Generate token requests in response
+     * @param \Illuminate\Http\Request $request
+     * @param \Lyignore\LaravelOauth2\Design\ResponseTypes\ResponseTypeInterface $responseType
+     * @param \DateInterval $dateInterval
+     * @return \Lyignore\LaravelOauth2\Design\ResponseTypes\ResponseTypeInterface
+     */
     public function respondToAccessTokenRequest(Request $request, ResponseTypeInterface $responseType, \DateInterval $dateInterval)
     {
         $client = $this->validateClient($request);
@@ -24,16 +33,32 @@ class ClientCredentialsGrant extends AbstractGrant
         return $responseType;
     }
 
+    /**
+     * Determine whether an authorization request can be responded to
+     * @param \Illuminate\Http\Request $request
+     * @return bool
+     */
     public function canRespondToAuthorizationRequest(Request $request)
     {
         return false;
     }
 
+    /**
+     * Verify that the authorization note is valid
+     * @param \Illuminate\Http\Request $request
+     * @return code|null
+     */
     public function validateAuthorizationRequest(Request $request)
     {
         throw new \Exception('This grant cannot validate an authorization request');
     }
 
+
+    /**
+     * Verify that the client is valid when you request accesstoken
+     * @param \Illuminate\Http\Request $request
+     * @return \Lyignore\LaravelOauth2\Design\Entities\ClientEntityInterface
+     */
     public function validateClient(Request $request)
     {
         $clientId = $request->input('client_id');
@@ -54,13 +79,17 @@ class ClientCredentialsGrant extends AbstractGrant
         return $client;
     }
 
+    /**
+     * The resource collection is returned by the scope field on the accesstoken application
+     * @param \Illuminate\Http\Request $request
+     * @return array
+     */
     public function validateScopes(Request $request)
     {
         $scopes = $request->input('scope', $this->defaultScope());
         $scopeList = array_filter(explode(self::SCOPE_DELIMITER_STRING, trim($scopes)));
         foreach ($scopeList as $scopeItem){
             $scope = $this->scopeRepository->getScopeEntityByIdentifier($scopeItem);
-
             if(!$scope instanceof ScopeEntityInterface){
                 throw new \Exception('Scope type error');
             }

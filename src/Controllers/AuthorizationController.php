@@ -87,7 +87,7 @@ class AuthorizationController
     /**
      * Transform the authorization requests's scopes into Scope instances.
      *
-     * @param  \League\OAuth2\Server\RequestTypes\AuthorizationRequest  $authRequest
+     * @param  \League\OAuth2\Server\RequestTypes\AuthorizationRequest $authRequest
      * @return array
      */
     protected function parseScopes($authRequest)

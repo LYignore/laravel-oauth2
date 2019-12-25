@@ -5,23 +5,49 @@ use Illuminate\Http\Request;
 use Lyignore\LaravelOauth2\Design\Entities\ScopeEntityInterface;
 use Lyignore\LaravelOauth2\Design\Entities\UserRepositoryInterface;
 use Lyignore\LaravelOauth2\Design\Repositories\ClientRepositoryInterface;
+use Lyignore\LaravelOauth2\Design\Repositories\RefreshTokenRepositoryInterface;
 use Lyignore\LaravelOauth2\Design\ResponseTypes\ResponseTypeInterface;
 
 class PasswordGrant extends AbstractGrant
 {
+    const IDENTIFIER = 'password';
+
+    /**
+     * Determine whether there is a user role and whether there is a refreshtoken requirement
+     */
     public function __construct(
-        UserRepositoryInterface $userRepository
+        UserRepositoryInterface $userRepository,
+        RefreshTokenRepositoryInterface $refreshTokenRepository,
+        $dateInterval=null
     )
     {
         $this->setUserRepository($userRepository);
-        $this->setRefreshTokenTTL(new \DateInterval('P7D'));
+
+        $this->setRefreshTokenRepository($refreshTokenRepository);
+        if($dateInterval instanceof \DateInterval){
+            $this->setRefreshTokenTTL($dateInterval);
+        }else{
+            $this->setRefreshTokenTTL(new \DateInterval('P7D'));
+        }
     }
 
     public function getIdentifier()
     {
-        return 'password';
+        return self::IDENTIFIER;
     }
 
+    public function setRefreshTokenRepository(RefreshTokenRepositoryInterface $refreshTokenRepository)
+    {
+        $this->refreshTokenRepository = $refreshTokenRepository;
+    }
+
+    /**
+     * Generate token requests in response
+     * @param \Illuminate\Http\Request $request
+     * @param \Lyignore\LaravelOauth2\Design\ResponseTypes\ResponseTypeInterface $responseType
+     * @param \DateInterval $dateInterval
+     * @return \Lyignore\LaravelOauth2\Design\ResponseTypes\ResponseTypeInterface
+     */
     public function respondToAccessTokenRequest(
         Request $request,
         ResponseTypeInterface $responseType,
@@ -42,16 +68,31 @@ class PasswordGrant extends AbstractGrant
         return $responseType;
     }
 
+    /**
+     * Determine whether an authorization request can be responded to
+     * @param \Illuminate\Http\Request $request
+     * @return bool
+     */
     public function canRespondToAuthorizationRequest(Request $request)
     {
         return false;
     }
 
+    /**
+     * Verify that the authorization note is valid
+     * @param \Illuminate\Http\Request $request
+     * @return code|null
+     */
     public function validateAuthorizationRequest(Request $request)
     {
         throw new \Exception('This grant cannot validate an authorization request');
     }
 
+    /**
+     * Verify that the client is valid when you request accesstoken
+     * @param \Illuminate\Http\Request $request
+     * @return \Lyignore\LaravelOauth2\Design\Entities\ClientEntityInterface
+     */
     public function validateClient(Request $request)
     {
         $clientId = $request->input('client_id');
@@ -72,6 +113,11 @@ class PasswordGrant extends AbstractGrant
         return $client;
     }
 
+    /**
+     * Verify that the user is valid when you request accesstoken
+     * @param \Illuminate\Http\Request $request
+     * @return \Lyignore\LaravelOauth2\Design\Entities\UserEntityInterface
+     */
     public function validateUser(Request $request)
     {
         $username = $request->input('username', '');
@@ -88,6 +134,11 @@ class PasswordGrant extends AbstractGrant
         return $user;
     }
 
+    /**
+     * The resource collection is returned by the scope field on the accesstoken application
+     * @param \Illuminate\Http\Request $request
+     * @return array
+     */
     public function validateScopes(Request $request)
     {
         $scopes = $request->input('scope', $this->defaultScope());

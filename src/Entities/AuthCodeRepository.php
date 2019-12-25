@@ -3,9 +3,17 @@ namespace Lyignore\LaravelOauth2\Entities;
 
 use Lyignore\LaravelOauth2\Design\Entities\AuthCodeEntityInterface;
 use Lyignore\LaravelOauth2\Design\Repositories\AuthCodeRepositoryInterface;
+use Lyignore\LaravelOauth2\Models\AuthCode as AuthCodeModel;
 
 class AuthCodeRepository implements AuthCodeRepositoryInterface
 {
+    protected $authCodeModel;
+
+    public function __construct(AuthCodeModel $authCode)
+    {
+        $this->authCodeModel = $authCode;
+    }
+
     public function getNewAuthCode()
     {
         return new AuthCode();
@@ -22,10 +30,8 @@ class AuthCodeRepository implements AuthCodeRepositoryInterface
             'expires_at' => $authCodeEntity->getExpiryDateTime(),
         ];
 
-        Passport::authCode()->setRawAttributes($attributes)->save();
+        $this->authCodeModel->create($attributes);
     }
-
-
 
     public function formatScopesForStorage(array $scopes)
     {
@@ -37,5 +43,17 @@ class AuthCodeRepository implements AuthCodeRepositoryInterface
         return array_map(function ($scope) {
             return $scope->getIdentifier();
         }, $scopes);
+    }
+
+    public function revokeAuthCode(AuthCodeEntityInterface $authCodeEntity)
+    {
+        $codeId = $authCodeEntity->getIdentifier();
+        $this->authCodeModel->where('id', $codeId)->update(['revoked' => true]);
+    }
+
+    public function isAuthCodeRevoked(AuthCodeEntityInterface $authCodeEntity)
+    {
+        $codeId = $authCodeEntity->getIdentifier();
+        return $this->authCodeModel->where('id', $codeId)->where('revoked', 1)->exists();
     }
 }

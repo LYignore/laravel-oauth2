@@ -7,13 +7,29 @@ class Scope implements ScopeEntityInterface
 {
     protected $identifier;
 
-    public function __construct($name)
+    protected $uri;
+
+    protected $description;
+
+    public function __construct($identifier, $uri, $dec)
     {
-        $this->identifier = $name;
+        $this->identifier   = $identifier;
+        $this->uri          = $uri;
+        $this->description  = $dec;
     }
 
     public function getIdentifier()
     {
         return $this->identifier;
+    }
+
+    public function getUri()
+    {
+        return $this->uri;
+    }
+
+    public function getDescription()
+    {
+        return $this->description;
     }
 }

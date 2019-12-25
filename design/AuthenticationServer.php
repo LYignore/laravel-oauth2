@@ -12,13 +12,30 @@ class AuthenticationServer
 {
     use CryptTrait;
 
-    private $accessTokenRepository;
+    protected $accessTokenRepository;
 
     protected $publicKey;
 
-    public function __construct(AccessTokenRepositoryInterface $accessTokenRepository)
-    {
+    protected $response;
+
+    /**
+     * Generate authentication server
+     *
+     * @param \Lyignore\LaravelOauth2\Design\Repositories\AccessTokenRepositoryInterface $accessTokenRepository
+     * @param \Lyignore\LaravelOauth2\Design\Grant\CryptTrait|string $publicKey
+     * @return void
+     */
+    public function __construct(
+        AccessTokenRepositoryInterface $accessTokenRepository,
+        $publicKey,
+        $response=false
+    ){
         $this->accessTokenRepository = $accessTokenRepository;
+        if ($publicKey instanceof CryptKey === false) {
+            $publicKey = new CryptKey($publicKey);
+        }
+        $this->response = $response;
+        $this->publicKey = $publicKey;
     }
 
     public function setPublicKey(CryptKey $key)
@@ -26,7 +43,14 @@ class AuthenticationServer
         $this->publicKey = $key;
     }
 
-    public function validateAuthorization(Request $request)
+    /**
+     * Verify whether the token of common request is valid, judge the basic
+     *  information such as time, and return the carrier information effectively
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\Request|array
+     */
+    public function validateAuthenticated(Request $request)
     {
         if ($request->hasHeader('authorization') === false) {
             throw new \Exception('Missing "Authorization" header');
@@ -53,19 +77,29 @@ class AuthenticationServer
                 throw new \Exception('Access token is invalid');
             }
 
-            // Check if token has been revoked
+            // Determine if the access token is invalid
             if ($this->accessTokenRepository->isAccessTokenRevoked($token->getClaim('jti'))) {
                 throw new \Exception('Access token has been revoked');
             }
-            return [
+            $result = [
                 'oauth_access_token_id' => $token->getClaim('jti'),
                 'oauth_client_id' => $token->getClaim('aud'),
                 'oauth_user_id' => $token->getClaim('sub'),
                 'oauth_scopes'  => $token->getClaim('scopes')
             ];
+            if($this->response){
+                $request->offsetSet('oauth_access_token_id', $token->getClaim('jti'));
+                $request->offsetSet('oauth_client_id', $token->getClaim('aud'));
+                $request->offsetSet('oauth_user_id', $token->getClaim('sub'));
+                $request->offsetSet('oauth_scopes', $token->getClaim('scopes'));
+                return $request;
+            }else{
+                return $result;
+            }
         } catch (\Exception $exception) {
             // JWT couldn't be parsed so return the request as is
             throw new \Exception($exception->getMessage());
         }
     }
+
 }

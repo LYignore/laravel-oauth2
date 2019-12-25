@@ -1,6 +1,7 @@
 <?php
 namespace Lyignore\LaravelOauth2\Entities;
 
+use http\Exception\RuntimeException;
 use Lyignore\LaravelOauth2\Design\Entities\UserRepositoryInterface;
 
 class UserRepository implements UserRepositoryInterface

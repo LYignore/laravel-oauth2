@@ -4,27 +4,67 @@ namespace Lyignore\LaravelOauth2;
 use Illuminate\Auth\RequestGuard;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
-use League\OAuth2\Server\AuthorizationServer;
-use League\OAuth2\Server\CryptKey;
-use League\OAuth2\Server\Grant\AuthCodeGrant;
-use League\OAuth2\Server\Grant\ClientCredentialsGrant;
-use League\OAuth2\Server\Grant\ImplicitGrant;
-use League\OAuth2\Server\Grant\PasswordGrant;
-use League\OAuth2\Server\Grant\RefreshTokenGrant;
-use League\OAuth2\Server\Repositories\ClientRepositoryInterface;
-use League\OAuth2\Server\ResourceServer;
-use League\OAuth2\Server\ResponseTypes\BearerTokenResponse;
+use Lyignore\LaravelOauth2\Design\AuthenticationServer;
+use Lyignore\LaravelOauth2\Design\AuthorizationServer;
+use Lyignore\LaravelOauth2\Design\CryptKey;
+use Lyignore\LaravelOauth2\Design\Grant\AuthCodeGrant;
+use Lyignore\LaravelOauth2\Design\Grant\ClientCredentialsGrant;
+use Lyignore\LaravelOauth2\Design\Grant\PasswordGrant;
+use Lyignore\LaravelOauth2\Design\Grant\RefreshTokenGrant;
+use Lyignore\LaravelOauth2\Entities\AccessTokenRepository;
+use Lyignore\LaravelOauth2\Entities\AuthCodeRepository;
+use Lyignore\LaravelOauth2\Entities\ClientRepository;
+use Lyignore\LaravelOauth2\Entities\RefreshTokenRepository;
+use Lyignore\LaravelOauth2\Entities\ScopeRepository;
+use Lyignore\LaravelOauth2\Entities\UserRepository;
+use Lyignore\LaravelOauth2\Guards\TokenGuard;
 
 class ApiServiceProvider extends ServiceProvider
 {
+    public static $runsMigrations = true;
     public function boot()
     {
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'passport');
 
+        $this->deleteCookieOnLogout();
+
+        if($this->app->runningInConsole()){
+            $this->registerMigrations();
+
+            $this->publishes([
+                __DIR__.'/../resources/views' => base_path('resources/views/vendor/passport'),
+            ], 'passport-views');
+
+            $this->publishes([
+                __DIR__.'/../resources/assets/js/components' => base_path('resources/assets/js/components/passport'),
+            ], 'passport-components');
+
+            $this->commands([
+                Console\InstallCommand::class,
+                Console\ClientCommand::class,
+                Console\KeysCommand::class,
+            ]);
+        }
+    }
+
+    protected function registerMigrations()
+    {
+        if (self::$runsMigrations) {
+            return $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        }
+
+        $this->publishes([
+            __DIR__.'/../database/migrations' => database_path('migrations'),
+        ], 'passport-migrations');
     }
 
     public function register()
     {
         $this->registerAuthorizationServer();
+
+        $this->registerAuthenticationServer();
+
+        $this->registerGuard();
     }
 
     /**
@@ -68,17 +108,29 @@ class ApiServiceProvider extends ServiceProvider
         });
     }
 
+    public function makeAuthorizationServer()
+    {
+        return new AuthorizationServer(
+            $this->app->make(ClientRepository::class),
+            $this->app->make(AccessTokenRepository::class),
+            $this->app->make(ScopeRepository::class),
+            $this->makeCryptKey('oauth-private.key'),
+            app('encrypter')->getKey()
+        );
+    }
+
 
     /**
      * Register the resource server
      * @return void
      */
-    protected function registerResourceServer()
+    protected function registerAuthenticationServer()
     {
-        $this->app->singleton(ResourceServer::class, function(){
-            return new ResourceServer(
-                $this->app->make(),
-                $this->makeCryptKey('oauth-public.key')
+        $this->app->singleton(AuthenticationServer::class, function(){
+            return new AuthenticationServer(
+                $this->app->make(AccessTokenRepository::class),
+                $this->makeCryptKey('oauth-public.key'),
+                true
             );
         });
     }
@@ -97,38 +149,40 @@ class ApiServiceProvider extends ServiceProvider
         });
     }
 
-
-    /**
-     * Build and configure an instance of the Implicit grant.
-     *
-     * @return \League\OAuth2\Server\Grant\ImplicitGrant
-     */
     protected function buildImplicitGrant()
     {
-        return new ImplicitGrant(Api::tokenExpireIn());
+        return false;
+        //return new ImplicitGrant(Api::tokenExpireIn());
     }
 
     /**
      * Build and configure a Password grant instance.
      *
-     * @return \League\OAuth2\Server\Grant\PasswordGrant
+     * @return \Lyignore\LaravelOauth2\Design\Grant\PasswordGrant
      */
     protected function buildPasswordGrant()
     {
-        $grant = new PasswordGrant();
-
-        $grant->setRefreshTokenTTL(Api::refreshTokenExpireIn());
+        $grant = new PasswordGrant(
+            $this->app->make(UserRepository::class),
+            $this->app->make(RefreshTokenRepository::class),
+            Api::refreshTokenExpireIn()
+        );
         return $grant;
     }
 
     /**
      * Build the Auth Code grant instance.
      *
-     * @return \League\OAuth2\Server\Grant\AuthCodeGrant
+     * @return \Lyignore\LaravelOauth2\Design\Grant\AuthCodeGrant
      */
     protected function buildAuthCodeGrant()
     {
-        $grant = new AuthCodeGrant();
+        $grant = new AuthCodeGrant(
+            $this->app->make(AuthCodeRepository::class),
+            $this->app->make(ScopeRepository::class),
+            app('encrypter')->getKey(),
+            Api::authCodeExpireIn()
+        );
         $grant->setRefreshTokenTTL(Api::refreshTokenExpireIn());
         return $grant;
     }
@@ -136,11 +190,13 @@ class ApiServiceProvider extends ServiceProvider
     /**
      * Build and configure a Refresh Token grant instance.
      *
-     * @return \League\OAuth2\Server\Grant\RefreshTokenGrant
+     * @return \Lyignore\LaravelOauth2\Design\Grant\RefreshTokenGrant
      */
     protected function buildRefreshTokenGrant()
     {
-        $grant = new RefreshTokenGrant();
+        $grant = new RefreshTokenGrant(
+            $this->app->make(RefreshTokenRepository::class)
+        );
         $grant->setRefreshTokenTTL(Api::refreshTokenExpireIn());
         return $grant;
     }
@@ -149,7 +205,7 @@ class ApiServiceProvider extends ServiceProvider
     /**
      *  Create a CryptKey instance without permissions check
      * @param string $key
-     * @return \League\OAuth2\Server\CryptKey
+     * @return \Lyignore\LaravelOauth2\Design\CryptKey
      */
     protected function makeCryptKey($key)
     {
@@ -163,12 +219,12 @@ class ApiServiceProvider extends ServiceProvider
     /**
      * Make an instance of the token guard
      * @param array $config
-     * @return \Illuminate\\Auth\RequestGuard
+     * @return \Illuminate\Auth\RequestGuard
      */
     protected function makeGuard($config)
     {
         return new RequestGuard(function($request) use($config){
-            return (new TokenGard(
+            return (new TokenGuard(
                 $this->app->make(ResourceServer::class),
                 Auth::createUserProvider($config['provider']),
                 $this->app->make(BearerTokenResponse::class),

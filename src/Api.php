@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 
 class Api
 {
-    public static $authorizationCodeGrantEnable = true;
+    public static $authorizationCodeGrantEnable = false;
     /**
      * Oauth2 password Grant Type
      * @var bool|true
@@ -22,11 +22,15 @@ class Api
      * Oauth2 client credentials Grant Type
      * @var bool|true
      */
-    public static $clientCredentialsGrantEnabled = false;
+    public static $clientCredentialsGrantEnabled = true;
+
 
     public static $refreshTokenGrantEnabled = false;
 
+
     public static $scopes = [];
+
+    public static $authCodeExpireAt;
 
     public static $tokenExpireAt;
 
@@ -125,6 +129,14 @@ class Api
         static::$scopes = $scopes;
     }
 
+    public static function authCodeExpireIn($date=null)
+    {
+        static::$authCodeExpireAt = static::$authCodeExpireAt
+            ? Carbon::now()->diff(static::$authCodeExpireAt)
+            : new \DateInterval('PT1M');
+        return static::$authCodeExpireAt;
+    }
+
     /**
      * Set the token expiration time
      * @param obj \DateTimeInterface
@@ -154,7 +166,7 @@ class Api
                 : new \DateInterval('P1Y');
         }
         static::$refreshTokenExpireAt = $date;
-        return new static;
+        return static::$refreshTokenExpireAt;
     }
 
     /**
