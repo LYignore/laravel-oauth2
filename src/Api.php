@@ -213,14 +213,31 @@ class Api
     /**
      * Sets the absolute address of the public key
      * @params string $file
+     * @params string $secondLevel
      * @return string
      */
-    public static function keyPath($file)
+    public static function keyPath($file, $secondLevel=null, $defaultFolder = 'secret')
     {
         $file = ltrim($file, '/\\');
-
-        return static::$keyPath
-            ? rtrim(static::$keyPath, '/\\').DIRECTORY_SEPARATOR.$file
-            : storage_path($file);
+        if(is_null($secondLevel)){
+            return static::$keyPath
+                ? rtrim(static::$keyPath, '/\\').DIRECTORY_SEPARATOR.$file
+                : storage_path($file);
+        }else{
+            $secondLevel = ltrim($secondLevel, '/\\');
+            $path = static::$keyPath?rtrim(static::$keyPath, '/\\').DIRECTORY_SEPARATOR.$defaultFolder.DIRECTORY_SEPARATOR.$secondLevel:
+                storage_path().DIRECTORY_SEPARATOR.$defaultFolder.DIRECTORY_SEPARATOR.$secondLevel;
+            if(!is_dir($path)){
+                $res=mkdir(iconv("UTF-8", "GBK", $path),0777,true);
+                if(!$res){
+                    throw new \Exception('Sorry, no permission to create a directory');
+                }
+            }
+            $filePath = $path.DIRECTORY_SEPARATOR.$file;
+            if(is_file($filePath)){
+                throw new \Exception('Sorry, the file "'.$path.'" already exists');
+            }
+            return $filePath;
+        }
     }
 }

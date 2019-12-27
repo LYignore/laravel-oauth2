@@ -2,6 +2,7 @@
 namespace Lyignore\LaravelOauth2\Design;
 
 use Illuminate\Http\Request;
+use Lyignore\LaravelOauth2\Design\Entities\ClientEntityInterface;
 use Lyignore\LaravelOauth2\Design\Grant\GrantTypeInterface;
 use Lyignore\LaravelOauth2\Design\Repositories\AccessTokenRepositoryInterface;
 use Lyignore\LaravelOauth2\Design\Repositories\ClientRepositoryInterface;
@@ -99,9 +100,34 @@ class AuthorizationServer
             if ($tokenResponse instanceof ResponseTypeInterface) {
                 return $tokenResponse->generateResponse($response);
             }
-
         }
 
-        throw new \Exception();
+        throw new \Exception('There is no valid token authorization server registry');
+    }
+
+    public function respondToClientRequest(Request $request)
+    {
+        $clientEntity = $this->clientRepository->getNewClient();
+        $this->validateClientInit($request, $clientEntity);
+
+        $this->clientRepository->persistNewClient($clientEntity);
+        return $clientEntity;
+    }
+
+    protected function validateClientInit(Request $request, ClientEntityInterface $clientEntity)
+    {
+        $name = $request->input('client_name');
+        if(empty($name)){
+            throw new \Exception('Please comment on the client');
+        }
+        $redirect = $request->input('redirect', 'http://localhost');
+
+        $clientEntity->setName($name);
+        $clientEntity->setRedirectUri($redirect);
+        $secret = $clientEntity->getSecret();
+        if(empty($secret)){
+            throw new \Exception('Please be the client\'s secret');
+        }
+        return $clientEntity;
     }
 }

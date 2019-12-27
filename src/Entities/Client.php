@@ -7,17 +7,11 @@ class Client implements ClientEntityInterface
 {
     protected $name;
 
-    protected $redirectUri;
+    protected $redirectUri = 'http://loacalhost';
 
     protected $identifier;
 
-    public function __construct($identifier, $name, $redirectUri)
-    {
-        $this->setIdentifer($identifier);
-
-        $this->name = $name;
-        $this->redirectUri = $redirectUri;
-    }
+    protected $secret;
 
     public function setIdentifer($identifier)
     {
@@ -29,9 +23,29 @@ class Client implements ClientEntityInterface
         return $this->identifier;
     }
 
+    public function setSecret($secret)
+    {
+        $this->secret = $secret;
+    }
+
+    public function getSecret()
+    {
+        return $this->secret;
+    }
+
+    public function setName($name)
+    {
+        $this->name = $name;
+    }
+
     public function getName()
     {
         return $this->name;
+    }
+
+    public function setRedirectUri($uri)
+    {
+        $this->redirectUri = $uri;
     }
 
     public function getRedirectUri()

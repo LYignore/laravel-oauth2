@@ -26,7 +26,7 @@ class ApiServiceProvider extends ServiceProvider
     {
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'passport');
 
-        $this->deleteCookieOnLogout();
+        //$this->deleteCookieOnLogout();
 
         if($this->app->runningInConsole()){
             $this->registerMigrations();
