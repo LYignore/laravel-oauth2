@@ -33,24 +33,31 @@ class KeysCommand extends Command
      */
     public function handle(RSA $rsa)
     {
-        $name = $this->option('name') ?: $this->ask(
-            'What should we name for publicKey?',
-            'secret_'.config('app.name')
-        );
-        $keys = $rsa->createKey(4096);
+        try{
+            $names = $this->option('name') ?: $this->ask(
+                'What should we name for publicKey?',
+                config('app.name')
+            );
+            $keys = $rsa->createKey(4096);
+            $name = 'secret_'. $names;
 
-        list($publicKey, $privateKey) = [
-            Api::keyPath('oauth-public.key', $name),
-            Api::keyPath('oauth-private.key', $name),
-        ];
+            list($publicKey, $privateKey) = [
+                Api::keyPath('oauth-public.key', $name),
+                Api::keyPath('oauth-private.key', $name),
+            ];
 
-        if ((file_exists($publicKey) || file_exists($privateKey)) && ! $this->option('force')) {
-            return $this->error('Encryption keys already exist. Use the --force option to overwrite them.');
+            if ((file_exists($publicKey) || file_exists($privateKey)) && ! $this->option('force')) {
+                $this->error('Encryption keys already exist. Use the --force option to overwrite them.');
+                exit;
+            }
+
+            file_put_contents($publicKey, Arr::get($keys, 'publickey'));
+            file_put_contents($privateKey, Arr::get($keys, 'privatekey'));
+
+            $this->info('Encryption keys generated successfully.');
+        }catch (\Exception $e){
+            $this->error($e->getMessage());
+            exit;
         }
-
-        file_put_contents($publicKey, Arr::get($keys, 'publickey'));
-        file_put_contents($privateKey, Arr::get($keys, 'privatekey'));
-
-        $this->info('Encryption keys generated successfully.');
     }
 }

@@ -14,6 +14,8 @@ abstract class AbstractResponse implements ResponseTypeInterface
 
     protected $refreshToken;
 
+    protected $privateKey;
+
     public function setAccessToken(AccessTokenEntityInterface $accessTokenEntity)
     {
         $this->accessToken = $accessTokenEntity;
@@ -22,5 +24,10 @@ abstract class AbstractResponse implements ResponseTypeInterface
     public function setRefreshToken(RefreshTokenEntityInterface $refreshTokenEntity)
     {
         $this->refreshToken = $refreshTokenEntity;
+    }
+
+    public function setPrivateKey(CryptKey $key)
+    {
+        $this->privateKey = $key;
     }
 }

@@ -20,6 +20,8 @@ abstract class AbstractGrant implements GrantTypeInterface
 
     protected $privateKey;
 
+    protected $publicKey;
+
     protected $refreshTokenTTL;
 
     protected $refreshTokenRepository;
@@ -42,6 +44,30 @@ abstract class AbstractGrant implements GrantTypeInterface
     public function setClientRepository(ClientRepositoryInterface $clientRepository)
     {
         $this->clientRepository = $clientRepository;
+    }
+
+    /**
+     * Verify that the client is valid when you request accesstoken
+     * @param \Illuminate\Http\Request $request
+     * @return \Lyignore\LaravelOauth2\Design\Entities\ClientEntityInterface
+     */
+    public function validateClient(Request $request)
+    {
+        $clientId = $request->input('client_id');
+
+        if(empty($clientId)){
+            throw new \Exception('Failed to get clientID');
+        }
+
+        if(!$this->clientRepository instanceof ClientRepositoryInterface){
+            throw new \Exception('Not configured setClientRepository');
+        }
+
+        $client =$this->clientRepository->getClientEntity(
+            $clientId, $this->getIdentifier()
+        );
+
+        return $client;
     }
 
     public function setUserRepository(UserRepositoryInterface $userRepository)
@@ -69,6 +95,21 @@ abstract class AbstractGrant implements GrantTypeInterface
         $this->privateKey = $cryptKey;
     }
 
+    public function getPrivateKey()
+    {
+        return $this->privateKey;
+    }
+
+    public function setPublicKey(CryptKey $cryptKey)
+    {
+        $this->publicKey = $cryptKey;
+    }
+
+    public function getPublicKey()
+    {
+        return $this->publicKey;
+    }
+
     public function canRespondToAccessTokenRequest(Request $request)
     {
         $params = (array)$request->all();
@@ -84,6 +125,9 @@ abstract class AbstractGrant implements GrantTypeInterface
                 $clientEntity = $this->clientRepository->getClientEntity($clientIdentifier, $this->getIdentifier());
                 $accessToken = $this->accessTokenRepository->getNewAccessToken($clientEntity, $scopes, $userEntity);
                 $accessToken->setIdentifier($this->generateUniqueIdentifier());
+                $dateTime = new \DateTime();
+                $dateTime->add($dateInterval);
+                $accessToken->setExpiryDateTime($dateTime);
                 $this->accessTokenRepository->persistNewAccessToken($accessToken);
                 return $accessToken;
             }catch (\Exception $e){

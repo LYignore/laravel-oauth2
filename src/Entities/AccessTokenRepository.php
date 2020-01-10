@@ -18,7 +18,8 @@ class AccessTokenRepository implements AccessTokenRepositoryInterface
 
     public function getNewAccessToken(ClientEntityInterface $clientEntity, array $scopes, UserEntityInterface $userEntity)
     {
-        return new AccessToken($userEntity, $clientEntity, $scopes);
+        $userIdentify = $userEntity->getIdentifier();
+        return new AccessToken($userIdentify, $clientEntity, $scopes);
     }
 
     public function persistNewAccessToken(AccessTokenEntityInterface $accessTokenEntity)
@@ -27,12 +28,17 @@ class AccessTokenRepository implements AccessTokenRepositoryInterface
             'id' => $accessTokenEntity->getIdentifier(),
             'user_id' => $accessTokenEntity->getUserIdentifier(),
             'client_id' => $accessTokenEntity->getClient()->getIdentifier(),
-            'scopes' => $this->scopesToArray($accessTokenEntity->getScopes()),
+            'scopes' => $this->formatScopes($accessTokenEntity->getScopes()),
             'revoked' => false,
-            'created_at' => new DateTime,
-            'updated_at' => new DateTime,
+            'created_at' => new \DateTime,
+            'updated_at' => new \DateTime,
             'expires_at' => $accessTokenEntity->getExpiryDateTime(),
         ]);
+    }
+
+    protected function formatScopes(array $scopes)
+    {
+        return json_encode($scopes);
     }
 
     public function revokeAccessToken($tokenId)
@@ -43,5 +49,10 @@ class AccessTokenRepository implements AccessTokenRepositoryInterface
     public function isAccessTokenRevoked($tokenId)
     {
         ($this->tokenModel)::where('id', $tokenId)->where('revoked', 1)->exists();
+    }
+
+    public function find($tokenId)
+    {
+        return ($this->tokenModel)::where('id', $tokenId)->where('revoked', false)->first();
     }
 }

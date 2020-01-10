@@ -5,9 +5,11 @@ use Lyignore\LaravelOauth2\Entities\Scope;
 
 interface ScopeRepositoryInterface
 {
-    public function getScopeEntityByIdentifier($identifier);
+    public function getScopeEntityByIdentifier($identifier, $formate = false);
+
+    public function getNewScope($identifier);
 
     public function persistNewScope(Scope $scope);
 
-    public function finalizeScopes(array $scopes);
+    public function finalizeScopes(array $scopes, $grantType);
 }

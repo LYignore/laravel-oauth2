@@ -67,9 +67,10 @@ class AccessToken implements AccessTokenEntityInterface
         $this->scopes[$scope->getIdentifier()] = $scope;
     }
 
-    public function getScope()
+    public function getScopes()
     {
-        return array_values($this->scopes);
+        //return array_values($this->scopes);
+        return array_keys($this->scopes);
     }
 
     public function setUserIdentifier($identifier)
@@ -91,7 +92,8 @@ class AccessToken implements AccessTokenEntityInterface
             ->setNotBefore(time())
             ->setExpiration($this->getExpiryDateTime()->getTimestamp())
             ->setSubject($this->getUserIdentifier())
-            ->set('scopes', $this->getScope())
+            ->set('scopes', $this->getScopes())
+            ->set('grant_type', $this->getClient()->getGrantType())
             ->sign(new Sha256(), new Key($cryptKey->getKeyPath(), $cryptKey->getPassPhrase()))
             ->getToken();
     }

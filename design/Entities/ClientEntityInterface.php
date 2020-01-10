@@ -18,4 +18,24 @@ interface ClientEntityInterface
     public function setRedirectUri($uri);
 
     public function getRedirectUri();
+
+    public function setGrantType($grantType);
+
+    public function getGrantType();
+
+    public function setPrivateKey($privateKey);
+
+    public function getPrivateKey();
+
+    public function setPublicKey($publicKey);
+
+    public function getPublicKey();
+
+    public function setScopes($scopes);
+
+    public function getScopes();
+
+    public function setVaildUntil(\DateTime $dateTime);
+
+    public function getVaildUntil();
 }

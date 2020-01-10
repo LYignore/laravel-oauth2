@@ -41,6 +41,8 @@ interface GrantTypeInterface
 
     public function issueAccessToken($clientIdentifier, UserEntityInterface $userEntity, \DateInterval $dateInterval, array $scopes);
 
+    public function validateClient(Request $request);
+
     public function validateAuthorizationRequest(Request $request);
 
     public function issueRefreshToken(AccessTokenEntityInterface $accessTokenEntity);

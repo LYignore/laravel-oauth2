@@ -3,6 +3,7 @@
 namespace Lyignore\LaravelOauth2\Console;
 
 use Illuminate\Console\Command;
+use Lyignore\LaravelOauth2\Entities\Client;
 use Lyignore\LaravelOauth2\Entities\ClientRepository;
 
 class ClientCommand extends Command
@@ -15,7 +16,9 @@ class ClientCommand extends Command
     protected $signature = 'passport:client
             {--credentials : Create a credentials access token client}
             {--password : Create a password grant client}
-            {--name= : The name of the client}';
+            {--name= : The name of the client}
+            {--scopes= : The name of the scope}
+            {--uri= : The name of the client}';
 
     /**
      * The console command description.
@@ -27,20 +30,24 @@ class ClientCommand extends Command
     /**
      * Execute the console command.
      *
-     * @param  \Lyignore\LaravelOauth2\Entities\ClientRepository  $clients
+     * @param  \Lyignore\LaravelOauth2\Entities\ClientRepository  $clientRepository
      * @return void
      */
-    public function handle(ClientRepository $clients)
+    public function handle(ClientRepository $clientRepository)
     {
-        if ($this->option('credentials')) {
-            return $this->createCredentialsClient($clients);
-        }
+        try{
+            if ($this->option('credentials')) {
+                return $this->createCredentialsClient($clientRepository);
+            }
 
-        if ($this->option('password')) {
-            return $this->createPasswordClient($clients);
+            if ($this->option('password')) {
+                return $this->createPasswordClient($clientRepository);
+            }
+            $this->createAuthCodeClient($clientRepository);
+        }catch (\Exception $e){
+            $this->error($e->getMessage());
+            exit;
         }
-
-        $this->createAuthCodeClient($clients);
     }
 
     protected function createCredentialsClient(ClientRepository $clientRepository)
@@ -50,11 +57,22 @@ class ClientCommand extends Command
             config('app.name')
         );
 
-        $uri = config('app.url');
+        $scopes = $this->option('scopes') ?: $this->ask(
+            'What token permission is assigned to the current client?(comma-separated)',
+            '*'
+        );
+        $scopeArr = json_encode(explode(",", $scopes));
 
+        $uri = config('app.url');
         $client = $clientRepository->getNewClient();
         $client->setName($name);
         $client->setRedirectUri($uri);
+        $client->setGrantType(Client::CREDENTIALS_CLIENT);
+        $client->setScopes($scopeArr);
+        $dateTime = new \DateTime();
+        $dateTime->add(new \DateInterval('P3Y'));
+        $client->setVaildUntil($dateTime);
+        $clientRepository->persistNewClient($client);
 
         $this->info('credentials grant client created successfully.');
         $this->line('<comment>Client ID:</comment> '.$client->getIdentifier());
@@ -64,7 +82,7 @@ class ClientCommand extends Command
     /**
      * Create a new password grant client.
      *
-     * @param  \Laravel\Passport\ClientRepository  $clients
+     * @param  \Laravel\Passport\ClientRepository  $clientRepository
      * @return void
      */
     protected function createPasswordClient(ClientRepository $clientRepository)
@@ -82,6 +100,8 @@ class ClientCommand extends Command
         $client = $clientRepository->getNewClient();
         $client->setName($name);
         $client->setRedirectUri($uri);
+        $client->setGrantType(Client::PASSWORD_CLIENT);
+        $clientRepository->persistNewClient($client);
 
         $this->info('Password grant client created successfully.');
         $this->line('<comment>Client ID:</comment> '.$client->getIdentifier());
@@ -91,15 +111,11 @@ class ClientCommand extends Command
     /**
      * Create a authorization code client.
      *
-     * @param  \Laravel\Passport\ClientRepository  $clientRepository
+     * @param  \Lyignore\LaravelOauth2\Entities\ClientRepository $clientRepository
      * @return void
      */
     protected function createAuthCodeClient(ClientRepository $clientRepository)
     {
-        $userId = $this->ask(
-            'Which user ID should the client be assigned to?'
-        );
-
         $name = $this->option('name') ?: $this->ask(
             'What should we name the client?'
         );
@@ -112,6 +128,8 @@ class ClientCommand extends Command
         $client = $clientRepository->getNewClient();
         $client->setName($name);
         $client->setRedirectUri($redirect);
+        $client->setGrantType(Client::AUTHORIZATION_CLIENT);
+        $clientRepository->persistNewClient($client);
 
         $this->info('New client created successfully.');
         $this->line('<comment>Client ID:</comment> '.$client->getIdentifier());

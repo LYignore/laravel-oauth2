@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 
-class CreateOauthAccessTokensTable extends Migration
+class CreateOauthScopesTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,15 +13,11 @@ class CreateOauthAccessTokensTable extends Migration
      */
     public function up()
     {
-        Schema::create('oauth_access_tokens', function (Blueprint $table) {
+        Schema::create('oauth_scopes', function (Blueprint $table) {
             $table->string('id', 100)->primary();
-            $table->string('user_id', 100)->nullable();
-            $table->string('client_id', 100);
-            $table->string('name')->nullable();
-            $table->text('scopes')->nullable();
+            $table->string('uri')->comment('资源地址');
+            $table->text('description')->comment('令牌资源描述')->nullable();
             $table->boolean('revoked');
-            $table->timestamps();
-            $table->dateTime('expires_at')->nullable();
         });
     }
 
@@ -32,6 +28,6 @@ class CreateOauthAccessTokensTable extends Migration
      */
     public function down()
     {
-        Schema::drop('oauth_access_tokens');
+        Schema::drop('oauth_scopes');
     }
 }

@@ -10,4 +10,5 @@ interface ClientRepositoryInterface
     public function persistNewClient(ClientEntityInterface $clientEntity);
 
     public function getNewClient();
+    
 }

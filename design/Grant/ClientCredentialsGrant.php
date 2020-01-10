@@ -2,11 +2,15 @@
 namespace Lyignore\LaravelOauth2\Design\Grant;
 
 use Illuminate\Http\Request;
+use Lyignore\LaravelOauth2\Design\Entities\ScopeEntityInterface;
+use Lyignore\LaravelOauth2\Design\Repositories\ClientRepositoryInterface;
 use Lyignore\LaravelOauth2\Design\ResponseTypes\ResponseTypeInterface;
+use Lyignore\LaravelOauth2\Entities\UserRepository;
+use Lyignore\LaravelOauth2\Models\Scope;
 
 class ClientCredentialsGrant extends AbstractGrant
 {
-    const IDENTIFIER = 'client_credentials';
+    const IDENTIFIER = 'credentials_client';
 
     public function getIdentifier()
     {
@@ -23,14 +27,23 @@ class ClientCredentialsGrant extends AbstractGrant
     public function respondToAccessTokenRequest(Request $request, ResponseTypeInterface $responseType, \DateInterval $dateInterval)
     {
         $client = $this->validateClient($request);
-        $scopes = $this->validateScopes($request);
+        $defaultScopes = $client->getScopes();
+        $scopes = $this->validateScopes($request, $defaultScopes);
+        // Verify that the client has token call permissions corresponding to scope
 
-        $finalizedScopes = $this->scopeRepository->finalizeScopes($scopes, $this->getIdentifier());
-        $accessToken = $this->issueAccessToken($client->getIdentifier(), null, $dateInterval, $finalizedScopes);
+        //$finalizedScopes = $this->scopeRepository->finalizeScopes($scopes, $this->getIdentifier());
+        $userEntity = $this->getDefaultUserEntity($client->getIdentifier());
+        $accessToken = $this->issueAccessToken($client->getIdentifier(), $userEntity, $dateInterval, $scopes);
 
         $responseType->setAccessToken($accessToken);
 
         return $responseType;
+    }
+
+    protected function getDefaultUserEntity($identify)
+    {
+        $userRepository = new UserRepository();
+        return $userRepository->getUserEntityByUserCrentials($identify, 1, ClientCredentialsGrant::IDENTIFIER);
     }
 
     /**
@@ -62,7 +75,6 @@ class ClientCredentialsGrant extends AbstractGrant
     public function validateClient(Request $request)
     {
         $clientId = $request->input('client_id');
-        $clientSecret = $request->input('client_secret');
 
         if(empty($clientId)){
             throw new \Exception('Failed to get clientID');
@@ -71,11 +83,9 @@ class ClientCredentialsGrant extends AbstractGrant
         if(!$this->clientRepository instanceof ClientRepositoryInterface){
             throw new \Exception('Not configured setClientRepository');
         }
-
         $client =$this->clientRepository->getClientEntity(
-            $clientId, $this->getIdentifier(), $clientSecret
+            $clientId, $this->getIdentifier()
         );
-
         return $client;
     }
 
@@ -84,11 +94,24 @@ class ClientCredentialsGrant extends AbstractGrant
      * @param \Illuminate\Http\Request $request
      * @return array
      */
-    public function validateScopes(Request $request)
+    public function validateScopes(Request $request, array $defaultScopes)
     {
-        $scopes = $request->input('scope', $this->defaultScope());
+        $scopes = $request->input('scope');
         $scopeList = array_filter(explode(self::SCOPE_DELIMITER_STRING, trim($scopes)));
-        foreach ($scopeList as $scopeItem){
+        $scopeList = empty($scopeList)?$defaultScopes:$scopeList;
+        $checkScope = array_intersect($defaultScopes, $scopeList);
+        if($checkScope != $scopeList&&$scopes!='*'){
+            throw new \Exception('The client does not have access to this token resource');
+        }
+        if($scopes == '*'){
+            $scopesModel = Scope::whereIn('id', $defaultScopes)->get();
+            return $this->scopeRepository->getAllScopes($scopesModel);
+        }
+        foreach ($checkScope as $scopeItem){
+            if($scopeItem == '*'){
+                $scopesModel = Scope::whereIn('id', $defaultScopes)->get();
+                return $this->scopeRepository->getAllScopes($scopesModel);
+            }
             $scope = $this->scopeRepository->getScopeEntityByIdentifier($scopeItem);
             if(!$scope instanceof ScopeEntityInterface){
                 throw new \Exception('Scope type error');

@@ -35,7 +35,6 @@ class AuthorizationServer
         ClientRepositoryInterface $clientRepository,
         AccessTokenRepositoryInterface $accessTokenRepository,
         ScopeRepositoryInterface $scopeRepository,
-        $privateKey,
         $encryptionKey,
         ResponseTypeInterface $responseType=null
     ) {
@@ -43,11 +42,6 @@ class AuthorizationServer
         $this->accessTokenRepository = $accessTokenRepository;
         $this->scopeRepository = $scopeRepository;
 
-        if ($privateKey instanceof CryptKey === false) {
-            $privateKey = new CryptKey($privateKey);
-        }
-
-        $this->privateKey = $privateKey;
         $this->encryptionKey = $encryptionKey;
 
         if ($responseType === null) {
@@ -68,7 +62,6 @@ class AuthorizationServer
         $grantType->setAccessTokenRepository($this->accessTokenRepository);
         $grantType->setClientRepository($this->clientRepository);
         $grantType->setScopeRepository($this->scopeRepository);
-        $grantType->setPrivateKey($this->privateKey);
         $grantType->setEncryptionKey($this->encryptionKey);
 
         $this->enabledGrantTypes[$grantType->getIdentifier()] = $grantType;
@@ -76,12 +69,24 @@ class AuthorizationServer
     }
 
 
-    protected function getResponseType()
+    protected function getResponseType(Request $request, GrantTypeInterface $grantType, $encryptionKey=null)
     {
         $responseType = clone $this->responseType;
 
-        $this->enabledGrantTypes($responseType);
+        $clientEntity = $grantType->validateClient($request);
 
+        if(!$clientEntity instanceof ClientEntityInterface){
+            throw new \Exception('Client type error');
+        }
+
+        //set up the private key
+        $privateKey = $clientEntity->getPrivateKey();
+        $responseType->setPrivateKey($privateKey);
+        if($encryptionKey){
+            $responseType->setEncryptionKey($encryptionKey);
+        }else{
+            $responseType->setEncryptionKey($this->encryptionKey);
+        }
         return $responseType;
     }
 
@@ -93,7 +98,7 @@ class AuthorizationServer
             }
             $tokenResponse = $grantType->respondToAccessTokenRequest(
                 $request,
-                $this->getResponseType(),
+                $this->getResponseType($request, $grantType),
                 $this->grantTypeAccessTokenTTL[$grantType->getIdentifier()]
             );
 

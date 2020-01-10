@@ -3,6 +3,7 @@ namespace Lyignore\LaravelOauth2\Entities;
 
 use http\Exception\RuntimeException;
 use Lyignore\LaravelOauth2\Design\Entities\UserRepositoryInterface;
+use Lyignore\LaravelOauth2\Design\Grant\ClientCredentialsGrant;
 
 class UserRepository implements UserRepositoryInterface
 {
@@ -12,6 +13,9 @@ class UserRepository implements UserRepositoryInterface
 
     public function getUserEntityByUserCrentials($username, $password, $grantType)
     {
+        if($grantType == ClientCredentialsGrant::IDENTIFIER){
+            return new User($username);
+        }
         $provider = config('auth.guards.api.provider');
 
         if(is_null($model = config('auth.providers.'. $provider. '.model'))){

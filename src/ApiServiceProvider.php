@@ -2,6 +2,7 @@
 namespace Lyignore\LaravelOauth2;
 
 use Illuminate\Auth\RequestGuard;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
 use Lyignore\LaravelOauth2\Design\AuthenticationServer;
@@ -11,6 +12,7 @@ use Lyignore\LaravelOauth2\Design\Grant\AuthCodeGrant;
 use Lyignore\LaravelOauth2\Design\Grant\ClientCredentialsGrant;
 use Lyignore\LaravelOauth2\Design\Grant\PasswordGrant;
 use Lyignore\LaravelOauth2\Design\Grant\RefreshTokenGrant;
+use Lyignore\LaravelOauth2\Design\ResponseTypes\BearerTokenResponse;
 use Lyignore\LaravelOauth2\Entities\AccessTokenRepository;
 use Lyignore\LaravelOauth2\Entities\AuthCodeRepository;
 use Lyignore\LaravelOauth2\Entities\ClientRepository;
@@ -18,6 +20,7 @@ use Lyignore\LaravelOauth2\Entities\RefreshTokenRepository;
 use Lyignore\LaravelOauth2\Entities\ScopeRepository;
 use Lyignore\LaravelOauth2\Entities\UserRepository;
 use Lyignore\LaravelOauth2\Guards\TokenGuard;
+use Lyignore\LaravelOauth2\Models\Client;
 
 class ApiServiceProvider extends ServiceProvider
 {
@@ -94,8 +97,9 @@ class ApiServiceProvider extends ServiceProvider
                 }
 
                 if(Api::$clientCredentialsGrantEnabled){
+                    $credentialsTime = new \DateInterval('PT7000S');
                     $server->enableGrantType(
-                        new ClientCredentialsGrant(), Api::tokenExpireIn()
+                        new ClientCredentialsGrant(), Api::tokenExpireIn($credentialsTime)
                     );
                 }
 
@@ -114,7 +118,6 @@ class ApiServiceProvider extends ServiceProvider
             $this->app->make(ClientRepository::class),
             $this->app->make(AccessTokenRepository::class),
             $this->app->make(ScopeRepository::class),
-            $this->makeCryptKey('oauth-private.key'),
             app('encrypter')->getKey()
         );
     }
@@ -129,7 +132,6 @@ class ApiServiceProvider extends ServiceProvider
         $this->app->singleton(AuthenticationServer::class, function(){
             return new AuthenticationServer(
                 $this->app->make(AccessTokenRepository::class),
-                $this->makeCryptKey('oauth-public.key'),
                 true
             );
         });
@@ -207,10 +209,10 @@ class ApiServiceProvider extends ServiceProvider
      * @param string $key
      * @return \Lyignore\LaravelOauth2\Design\CryptKey
      */
-    protected function makeCryptKey($key)
+    protected function makeCryptKey($key, $secondLevel = null)
     {
         return new CryptKey(
-            'file://'.Api::keyPath($key),
+            'file://'.Api::keyPath($key, $secondLevel),
             null,
             false
         );
@@ -225,10 +227,10 @@ class ApiServiceProvider extends ServiceProvider
     {
         return new RequestGuard(function($request) use($config){
             return (new TokenGuard(
-                $this->app->make(ResourceServer::class),
+                $this->app->make(AuthenticationServer::class),
                 Auth::createUserProvider($config['provider']),
-                $this->app->make(BearerTokenResponse::class),
-                $this->app->make(ClientRepositoryInterface::class),
+                $this->app->make(AccessTokenRepository::class),
+                $this->app->make(ClientRepository::class),
                 $this->app->make('encrypter')
             ))->user($request);
         }, $this->app['request']);

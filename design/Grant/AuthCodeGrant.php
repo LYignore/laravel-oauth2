@@ -3,12 +3,14 @@ namespace Lyignore\LaravelOauth2\Design\Grant;
 
 use Illuminate\Http\Request;
 use Lyignore\LaravelOauth2\Design\Entities\ClientEntityInterface;
+use Lyignore\LaravelOauth2\Design\Entities\ScopeEntityInterface;
 use Lyignore\LaravelOauth2\Design\Repositories\AuthCodeRepositoryInterface;
 use Lyignore\LaravelOauth2\Design\Repositories\ScopeRepositoryInterface;
 use Lyignore\LaravelOauth2\Design\ResponseTypes\ResponseTypeInterface;
 
 class AuthCodeGrant extends AbstractGrant
 {
+    const IDENTIFIER = 'authorization_client';
     private $authCodeTTL;
 
     public function __construct(
@@ -78,11 +80,11 @@ class AuthCodeGrant extends AbstractGrant
         foreach ($scopes as $scopeItem) {
             $scope = $this->scopeRepository->getScopeEntityByIdentifier($scopeItem);
 
-            if ($scope instanceof ScopeRepositoryInterface === false) {
+            if ($scope instanceof ScopeEntityInterface === false) {
                 throw new \Exception('Scope type error');
             }
 
-            $validScopes[] = $scope;
+            $validScopes[] = $scope->getIdentifier();
         }
 
         return $validScopes;
@@ -91,7 +93,6 @@ class AuthCodeGrant extends AbstractGrant
     public function validateClient(Request $request)
     {
         $clientId = $request->input('client_id');
-        $clientSecret = $request->input('client_secret');
 
         if(empty($clientId)){
             throw new \Exception('Failed to get clientID');
@@ -102,7 +103,7 @@ class AuthCodeGrant extends AbstractGrant
         }
 
         $client =$this->clientRepository->getClientEntity(
-            $clientId, $this->getIdentifier(), $clientSecret
+            $clientId, $this->getIdentifier()
         );
 
         return $client;

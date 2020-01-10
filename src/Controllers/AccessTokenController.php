@@ -2,11 +2,10 @@
 
 namespace Lyignore\LaravelOauth2\Http\Controllers;
 
-use Laravel\Passport\TokenRepository;
+use Illuminate\Http\Request;
 use Lcobucci\JWT\Parser as JwtParser;
-use Psr\Http\Message\ServerRequestInterface;
-use Zend\Diactoros\Response as Psr7Response;
-use League\OAuth2\Server\AuthorizationServer;
+use Lyignore\LaravelOauth2\Design\AuthorizationServer;
+use Lyignore\LaravelOauth2\Design\ResponseTypes\BearerTokenResponse;
 
 class AccessTokenController
 {
@@ -15,16 +14,9 @@ class AccessTokenController
     /**
      * The authorization server.
      *
-     * @var \League\OAuth2\Server\AuthorizationServer
+     * @var \Lyignore\LaravelOauth2\Design\AuthorizationServer
      */
     protected $server;
-
-    /**
-     * The token repository instance.
-     *
-     * @var \Laravel\Passport\TokenRepository
-     */
-    protected $tokens;
 
     /**
      * The JWT parser instance.
@@ -36,32 +28,32 @@ class AccessTokenController
     /**
      * Create a new controller instance.
      *
-     * @param  \League\OAuth2\Server\AuthorizationServer  $server
-     * @param  \Laravel\Passport\TokenRepository  $tokens
+     * @param  \Lyignore\LaravelOauth2\Design\AuthorizationServer $server
      * @param  \Lcobucci\JWT\Parser  $jwt
      * @return void
      */
     public function __construct(AuthorizationServer $server,
-                                TokenRepository $tokens,
                                 JwtParser $jwt)
     {
         $this->jwt = $jwt;
         $this->server = $server;
-        $this->tokens = $tokens;
     }
 
     /**
      * Authorize a client to access the user's account.
      *
-     * @param  \Psr\Http\Message\ServerRequestInterface  $request
+     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function issueToken(ServerRequestInterface $request)
+    public function issueToken(Request $request)
     {
         return $this->withErrorHandling(function () use ($request) {
-            return $this->convertResponse(
-                $this->server->respondToAccessTokenRequest($request, new Psr7Response)
-            );
+            $token = $this->server->respondToAccessTokenRequest($request, new BearerTokenResponse);
+            return response()->json([
+                'status_code' => 200,
+                'message' => 'generation token successful',
+                'data'  => $token
+            ], 200);
         });
     }
 }

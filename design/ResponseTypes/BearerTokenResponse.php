@@ -15,7 +15,7 @@ class BearerTokenResponse extends AbstractResponse
         $responseParmas = [
             'token_type' => 'Bearer',
             'expires_in' => $expireDateTime-(new \DateTime())->getTimestamp(),
-            'access_token' => $jwtAccessToken
+            'access_token' => (string)$jwtAccessToken
         ];
         if($this->refreshToken instanceof RefreshTokenEntityInterface){
             $refreshToken = $this->encrypt(

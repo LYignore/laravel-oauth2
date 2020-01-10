@@ -3,6 +3,7 @@ namespace Lyignore\LaravelOauth2;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Route;
+use Lyignore\LaravelOauth2\Design\Grant\CryptTrait;
 
 class Api
 {
@@ -30,11 +31,11 @@ class Api
 
     public static $scopes = [];
 
-    public static $authCodeExpireAt;
+    public static $authCodeExpireIn;
 
-    public static $tokenExpireAt;
+    public static $tokenExpireIn;
 
-    public static $refreshTokenExpireAt;
+    public static $refreshTokenExpireIn;
 
     public static $cookie = 'oauth_token';
 
@@ -131,42 +132,42 @@ class Api
 
     public static function authCodeExpireIn($date=null)
     {
-        static::$authCodeExpireAt = static::$authCodeExpireAt
-            ? Carbon::now()->diff(static::$authCodeExpireAt)
+        static::$authCodeExpireIn = static::$authCodeExpireIn
+            ? Carbon::now()->diff(static::$authCodeExpireIn)
             : new \DateInterval('PT1M');
-        return static::$authCodeExpireAt;
+        return static::$authCodeExpireIn;
     }
 
     /**
      * Set the token expiration time
-     * @param obj \DateTimeInterface
+     * @param obj \DateInterval
      * return static
      */
-    public static function tokenExpireIn(\DateTimeInterface $date = null)
+    public static function tokenExpireIn(\DateInterval $date = null)
     {
         if(is_null($date)){
-            return static::$tokenExpireAt
-                        ? Carbon::now()->diff(static::$tokenExpireAt)
+            return static::$tokenExpireIn
+                        ? Carbon::now()->diff(static::$tokenExpireIn)
                         : new \DateInterval('P1Y');
         }
-        static::$tokenExpireAt = $date;
-        return new static;
+        return static::$tokenExpireIn = $date;
+        //return new static;
     }
 
     /**
      * Set the refreshToken expiration time
-     * @param obj \DateTimeInterface
+     * @param obj \DateInterval
      * return static
      */
-    public static function refreshTokenExpireIn(\DateTimeInterface $date = null)
+    public static function refreshTokenExpireIn(\DateInterval $date = null)
     {
         if(is_null($date)){
-            return static::$refreshTokenExpireAt
-                ? Carbon::now()->diff(static::$refreshTokenExpireAt)
+            return static::$refreshTokenExpireIn
+                ? Carbon::now()->diff(static::$refreshTokenExpireIn)
                 : new \DateInterval('P1Y');
         }
-        static::$refreshTokenExpireAt = $date;
-        return static::$refreshTokenExpireAt;
+        static::$refreshTokenExpireIn = $date;
+        return static::$refreshTokenExpireIn;
     }
 
     /**
@@ -234,9 +235,6 @@ class Api
                 }
             }
             $filePath = $path.DIRECTORY_SEPARATOR.$file;
-            if(is_file($filePath)){
-                throw new \Exception('Sorry, the file "'.$path.'" already exists');
-            }
             return $filePath;
         }
     }

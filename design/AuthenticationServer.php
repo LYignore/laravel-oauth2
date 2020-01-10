@@ -1,10 +1,12 @@
 <?php
 namespace Lyignore\LaravelOauth2\Design;
 use http\Exception\BadMethodCallException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
 use Lcobucci\JWT\Parser;
 use Lcobucci\JWT\Signer\Rsa\Sha256;
 use Lcobucci\JWT\ValidationData;
+use Lyignore\LaravelOauth2\Design\Exceptions\AuthenticationException as AuthException;
 use Lyignore\LaravelOauth2\Design\Grant\CryptTrait;
 use Lyignore\LaravelOauth2\Design\Repositories\AccessTokenRepositoryInterface;
 
@@ -22,20 +24,15 @@ class AuthenticationServer
      * Generate authentication server
      *
      * @param \Lyignore\LaravelOauth2\Design\Repositories\AccessTokenRepositoryInterface $accessTokenRepository
-     * @param \Lyignore\LaravelOauth2\Design\Grant\CryptTrait|string $publicKey
+     * @param bool $response
      * @return void
      */
     public function __construct(
         AccessTokenRepositoryInterface $accessTokenRepository,
-        $publicKey,
         $response=false
     ){
         $this->accessTokenRepository = $accessTokenRepository;
-        if ($publicKey instanceof CryptKey === false) {
-            $publicKey = new CryptKey($publicKey);
-        }
         $this->response = $response;
-        $this->publicKey = $publicKey;
     }
 
     public function setPublicKey(CryptKey $key)
@@ -43,62 +40,70 @@ class AuthenticationServer
         $this->publicKey = $key;
     }
 
+    public function getPublicKey()
+    {
+        return $this->publicKey;
+    }
+
     /**
      * Verify whether the token of common request is valid, judge the basic
      *  information such as time, and return the carrier information effectively
      *
      * @param \Illuminate\Http\Request $request
+     * @param bool $response
      * @return \Illuminate\Http\Request|array
      */
-    public function validateAuthenticated(Request $request)
+    public function validateAuthenticated(Request $request,$response = false)
     {
         if ($request->hasHeader('authorization') === false) {
-            throw new \Exception('Missing "Authorization" header');
+            throw new AuthException('Missing "Authorization" header');
         }
 
-        $header = $request->input('authorization');
-        $jwt = trim((string) preg_replace('/^(?:\s+)?Bearer\s/', '', $header[0]));
+        $bearerToken = $request->header('authorization');
+        $jwt = trim((string) preg_replace('/^(?:\s+)?Bearer\s/', '', $bearerToken));
 
         try {
             $token = (new Parser())->parse($jwt);
-            try {
-                if ($token->verify(new Sha256(), $this->publicKey->getKeyPath()) === false) {
-                    throw new \Exception('Access token could not be verified');
-                }
-            } catch (BadMethodCallException $exception) {
-                throw new \Exception('Access token is not signed');
-            }
-
+//            try {
+//                if ($token->verify(new Sha256(), $this->publicKey->getKeyPath()) === false) {
+//                    throw new \Exception('Access token could not be verified');
+//                }
+//            } catch (BadMethodCallException $exception) {
+//                throw new \Exception('Access token is not signed');
+//            }
             // Ensure access token hasn't expired
             $data = new ValidationData();
             $data->setCurrentTime(time());
 
             if ($token->validate($data) === false) {
-                throw new \Exception('Access token is invalid');
+                throw new AuthException('Access token is invalid');
             }
 
             // Determine if the access token is invalid
             if ($this->accessTokenRepository->isAccessTokenRevoked($token->getClaim('jti'))) {
-                throw new \Exception('Access token has been revoked');
+                throw new AuthException('Access token has been revoked');
             }
-            $result = [
-                'oauth_access_token_id' => $token->getClaim('jti'),
-                'oauth_client_id' => $token->getClaim('aud'),
-                'oauth_user_id' => $token->getClaim('sub'),
-                'oauth_scopes'  => $token->getClaim('scopes')
-            ];
-            if($this->response){
+
+            if($response){
                 $request->offsetSet('oauth_access_token_id', $token->getClaim('jti'));
                 $request->offsetSet('oauth_client_id', $token->getClaim('aud'));
                 $request->offsetSet('oauth_user_id', $token->getClaim('sub'));
                 $request->offsetSet('oauth_scopes', $token->getClaim('scopes'));
+                $request->offsetSet('grant_type', $token->getClaim('grant_type'));
                 return $request;
             }else{
+                $result = [
+                    'oauth_access_token_id' => $token->getClaim('jti'),
+                    'oauth_client_id' => $token->getClaim('aud'),
+                    'oauth_user_id' => $token->getClaim('sub'),
+                    'oauth_scopes'  => $token->getClaim('scopes'),
+                    'grant_type'    => $token->getClaim('grant_type')
+                ];
                 return $result;
             }
-        } catch (\Exception $exception) {
+        } catch (AuthException $e) {
             // JWT couldn't be parsed so return the request as is
-            throw new \Exception($exception->getMessage());
+            throw new AuthenticationException($e->getMessage());
         }
     }
 

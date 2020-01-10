@@ -5,7 +5,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Token extends Model
 {
-    protected $table = "oauth_access_token";
+    protected $table = "oauth_access_tokens";
 
     public $incrementing = false;
 
@@ -35,5 +35,10 @@ class Token extends Model
     public function revoke()
     {
         $this->forceFill(['revoked' => true])->save();
+    }
+
+    public function getAuthIdentifier()
+    {
+        return $this->id;
     }
 }

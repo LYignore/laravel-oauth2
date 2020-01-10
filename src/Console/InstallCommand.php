@@ -11,7 +11,11 @@ class InstallCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'passport:install {--force : Overwrite keys if they already exist}';
+    protected $signature = 'account:install 
+            {--force : Overwrite keys if they already exist}
+            {--name= : The name of the client}
+            {--credentials : Create a credentials access token client}
+            {--password : Create a password grant client}';
 
     /**
      * The console command description.
@@ -27,8 +31,14 @@ class InstallCommand extends Command
      */
     public function handle()
     {
-        $this->call('passport:keys', ['--force' => $this->option('force')]);
+        $password = $this->option('password');
 
-        $this->call('passport:client', ['--password' => true, '--name' => config('app.name').' Password Grant Client']);
+        $this->call('passport:keys', ['--force' => $this->option('force'), '--name' => $this->option('name')]);
+
+        if($password){
+            $this->call('passport:client', ['--password' => true, '--name' => $this->option('name'), '--scopes'=>'*']);
+        }else{
+            $this->call('passport:client', ['--credentials' => true, '--name' => $this->option('name'), '--scopes'=>'*']);
+        }
     }
 }

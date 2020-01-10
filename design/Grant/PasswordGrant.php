@@ -54,7 +54,8 @@ class PasswordGrant extends AbstractGrant
         \DateInterval $dateInterval)
     {
         $client = $this->validateClient($request);
-        $scopes = $this->validateScopes($request);
+        $defaultScopes = $client->getScopes();
+        $scopes = $this->validateScopes($request, $defaultScopes);
         $user = $this->validateUser($request);
 
         $finalizedScopes = $this->scopeRepository->finalizeScopes($scopes, $this->getIdentifier());
@@ -96,7 +97,6 @@ class PasswordGrant extends AbstractGrant
     public function validateClient(Request $request)
     {
         $clientId = $request->input('client_id');
-        $clientSecret = $request->input('client_secret');
 
         if(empty($clientId)){
             throw new \Exception('Failed to get clientID');
@@ -107,7 +107,7 @@ class PasswordGrant extends AbstractGrant
         }
 
         $client =$this->clientRepository->getClientEntity(
-            $clientId, $this->getIdentifier(), $clientSecret
+            $clientId, $this->getIdentifier()
         );
 
         return $client;
@@ -139,9 +139,9 @@ class PasswordGrant extends AbstractGrant
      * @param \Illuminate\Http\Request $request
      * @return array
      */
-    public function validateScopes(Request $request)
+    public function validateScopes(Request $request, array $defaultScopes)
     {
-        $scopes = $request->input('scope', $this->defaultScope());
+        $scopes = $request->input('scope', $defaultScopes);
         $scopeList = array_filter(explode(self::SCOPE_DELIMITER_STRING, trim($scopes)));
         foreach ($scopeList as $scopeItem){
             $scope = $this->scopeRepository->getScopeEntityByIdentifier($scopeItem);
@@ -149,7 +149,7 @@ class PasswordGrant extends AbstractGrant
             if(!$scope instanceof ScopeEntityInterface){
                 throw new \Exception('Scope type error');
             }
-            $validScopes[] = $scope;
+            $validScopes[] = $scope->getIdentifier();
         }
         return $validScopes;
     }

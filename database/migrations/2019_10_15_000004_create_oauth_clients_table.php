@@ -18,10 +18,13 @@ class CreateOauthClientsTable extends Migration
             $table->string('name');
             $table->string('secret', 100);
             $table->text('redirect');
+            $table->text('scopes')->nullable();
             $table->boolean('credentials_client')->default(true);
             $table->boolean('password_client')->default(false);
             $table->boolean('authorization_client')->default(false);
             $table->boolean('revoked');
+            $table->timestamp('valid_at')->comment('有效时间');
+            $table->softDeletes();
             $table->timestamps();
         });
     }

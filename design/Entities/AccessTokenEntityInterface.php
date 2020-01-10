@@ -15,7 +15,7 @@ interface AccessTokenEntityInterface
     public function getClient();
 
     public function addScope(ScopeEntityInterface $scopesEntity);
-    public function getScope();
+    public function getScopes();
 
     public function setUserIdentifier($identifier);
     public function getUserIdentifier();
