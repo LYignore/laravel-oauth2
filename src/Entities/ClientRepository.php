@@ -42,7 +42,8 @@ class ClientRepository implements ClientRepositoryInterface
 //        $privateKey = Api::keyPath('oauth-private.key', 'secret_'.$record->name);
         $privateKey = $this->makeCryptKey('oauth-private.key', 'secret_'.$this->client->getName());
         $this->client->setPrivateKey($privateKey);
-
+        $publicKey = $this->makeCryptKey('oauth-public.key', 'secret_'.$this->client->getName());
+        $this->client->setPublicKey($publicKey);
         return $this->client;
     }
 

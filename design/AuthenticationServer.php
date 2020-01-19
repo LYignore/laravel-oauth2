@@ -9,12 +9,15 @@ use Lcobucci\JWT\ValidationData;
 use Lyignore\LaravelOauth2\Design\Exceptions\AuthenticationException as AuthException;
 use Lyignore\LaravelOauth2\Design\Grant\CryptTrait;
 use Lyignore\LaravelOauth2\Design\Repositories\AccessTokenRepositoryInterface;
+use Lyignore\LaravelOauth2\Entities\ClientRepository;
 
 class AuthenticationServer
 {
     use CryptTrait;
 
     protected $accessTokenRepository;
+
+    protected $clientRepository;
 
     protected $publicKey;
 
@@ -24,14 +27,17 @@ class AuthenticationServer
      * Generate authentication server
      *
      * @param \Lyignore\LaravelOauth2\Design\Repositories\AccessTokenRepositoryInterface $accessTokenRepository
+     * @param \Lyignore\LaravelOauth2\Entities\ClientRepository $clientRepository
      * @param bool $response
      * @return void
      */
     public function __construct(
         AccessTokenRepositoryInterface $accessTokenRepository,
+        ClientRepository $clientRepository,
         $response=false
     ){
         $this->accessTokenRepository = $accessTokenRepository;
+        $this->clientRepository = $clientRepository;
         $this->response = $response;
     }
 
@@ -64,13 +70,11 @@ class AuthenticationServer
 
         try {
             $token = (new Parser())->parse($jwt);
-//            try {
-//                if ($token->verify(new Sha256(), $this->publicKey->getKeyPath()) === false) {
-//                    throw new \Exception('Access token could not be verified');
-//                }
-//            } catch (BadMethodCallException $exception) {
-//                throw new \Exception('Access token is not signed');
-//            }
+            $clientResitory = $this->clientRepository->getClientEntity($token->getClaim('aud'), $token->getClaim('grant_type'));
+            $this->setPublicKey($clientResitory->getPublicKey());
+            if ($token->verify(new Sha256(), $this->publicKey->getKeyPath()) === false) {
+                throw new AuthException('Access token could not be verified');
+            }
             // Ensure access token hasn't expired
             $data = new ValidationData();
             $data->setCurrentTime(time());
@@ -104,6 +108,8 @@ class AuthenticationServer
         } catch (AuthException $e) {
             // JWT couldn't be parsed so return the request as is
             throw new AuthenticationException($e->getMessage());
+        } catch (\Exception $e) {
+            throw new AuthenticationException('Access token is not signed');
         }
     }
 

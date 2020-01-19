@@ -132,6 +132,7 @@ class ApiServiceProvider extends ServiceProvider
         $this->app->singleton(AuthenticationServer::class, function(){
             return new AuthenticationServer(
                 $this->app->make(AccessTokenRepository::class),
+                $this->app->make(ClientRepository::class),
                 true
             );
         });
